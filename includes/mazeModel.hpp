@@ -1,8 +1,12 @@
-#pragma once
+#ifndef __MAZEMODEL_HPP__
+#define __MAZEMODEL_HPP__
 
-#include "./stdCore.hpp"
+#include "../includes/__libs__.hpp"
+#include "../engine/position.hpp"
 
 /* coordenadas aonde devem-se desenhar as frutinhas que o pacman precisa pegar. */
-extern const std::vector<Coord_t> mazeFruitCoordCells;
+const std::vector<Coord> mazeFruitCoordCells;
 
-extern const std::string mazeModel;
+const std::string mazeModel;
+
+#endif

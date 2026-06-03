@@ -1,6 +1,5 @@
 #include "./keyboardManager.hpp"
 
-
 KeyboardManager::KeyboardManager(){};
 
 int KeyboardManager::KeyPressed(){

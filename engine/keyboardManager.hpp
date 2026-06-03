@@ -1,4 +1,7 @@
-#include "./stdCore.hpp"
+#ifndef __KEYBOARDMANAGER__HP__
+#define __KEYBOARDMANAGER__HP__
+
+#include "../includes/__libs__.hpp"
 
 struct KeyboardManager {
 
@@ -8,3 +11,5 @@ struct KeyboardManager {
 
     int KeyPressed();
 };
+
+#endif
