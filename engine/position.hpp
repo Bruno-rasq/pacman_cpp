@@ -16,10 +16,10 @@ struct CoordHash {
 };
 
 /* Direção - deslocamento XY */
-const std::unordered_map<Direction, Coord> Deltas;
+extern const std::unordered_map<Direction, Coord> Deltas;
 
 /* Estrutura Node - coordenada */
-const std::unordered_map<char, Coord> Nodes;
+extern const std::unordered_map<char, Coord> Nodes;
 
 /*
     Agrupa as coordenadas dos nodes de conexão de um respectivo node para as
@@ -32,7 +32,7 @@ struct Conn { char up, down, left, right; };
     Estrutura graph armazena os dados de cada node do mapa e seus adjacentes
     afim de criar um acesso rapido e estatico aos mesmos.
 */
-const std::unordered_map<Coord, Conn, CoordHash> graph;
+extern const std::unordered_map<Coord, Conn, CoordHash> graph;
 
 
 #endif

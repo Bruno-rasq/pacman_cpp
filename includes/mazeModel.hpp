@@ -5,8 +5,11 @@
 #include "../engine/position.hpp"
 
 /* coordenadas aonde devem-se desenhar as frutinhas que o pacman precisa pegar. */
-const std::vector<Coord> mazeFruitCoordCells;
+extern const std::vector<Coord> mazeFruitCoordCells;
 
-const std::string mazeModel;
+/* modelo do labirinto de pacman desenhado em ascii numa string 
+   corrida, isso simplifica a forma de desenhar o labirinto e o
+   modificar.**/
+extern const std::string mazeModel;
 
 #endif
