@@ -3,7 +3,7 @@
 
 #include "../includes/__libs__.hpp"
 
-enum Direction {UP, RIGHT, DOWN, LEFT};
+enum Direction {UP, RIGHT, DOWN, LEFT, NONE};
 
 struct Coord {
     int8_t x, y; // row: x  col: y

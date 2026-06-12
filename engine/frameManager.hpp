@@ -8,14 +8,15 @@
 
 struct Frame {
 
-    const int8_t frame_width = 29; 
+    const int8_t frame_width = 28;
+    const int8_t frame_height = 30; 
     std::string frame_board = mazeModel;
 
     Frame();
 
     void render() const;
     void draw(Sprite& sprite);
-    bool check_Wall(Coord& coord);
+    bool check_valid_coord(Coord& coord);
 };
 
 #endif

@@ -2,6 +2,7 @@
 #define __KEYBOARDMANAGER__HP__
 
 #include "../includes/__libs__.hpp"
+#include "../engine/position.hpp"
 
 struct KeyboardManager {
 

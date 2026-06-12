@@ -8,10 +8,17 @@ void Frame::draw(Sprite& sprite){
     this->frame_board[x * (this->frame_width + 1) + y] = sprite.icon;
 };
 
-bool Frame::check_Wall(Coord& coord){
+bool Frame::check_valid_coord(Coord& coord){
     int8_t x = coord.x;
     int8_t y = coord.y;
-    return this->frame_board[x * (this->frame_width + 1) + y] != '#';
+
+    // checa se a coordeana esta dentro dos limites od frame
+    if(x >= 0 && x < this->frame_width && y >= 0 && y < this->frame_height)
+        // checa se a coordeanda não é uma parede
+        if(this->frame_board[x * (this->frame_width + 1) + y] != '#')
+            return true;
+
+    return false;
 };
 
 void Frame::render() const {
