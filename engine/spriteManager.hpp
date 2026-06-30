@@ -5,10 +5,8 @@
 #include "../engine/position.hpp"
 
 struct Sprite {
-
     Coord coord;
     char icon;
-
     Sprite(Coord c, char icon);
 };
 

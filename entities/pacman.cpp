@@ -25,8 +25,12 @@ void Pacman::update_pacman_status(Frame& fr, Direction nd){
 
     if(nd != Direction::NONE) delta = Deltas.at(nd);
 
-    Coord nc = {(int8_t)(this->pacman_coord.x + delta.x),
-                (int8_t)(this->pacman_coord.y + delta.y)};
+    Coord nc = {this->pacman_coord.row + delta.row,
+                this->pacman_coord.col + delta.col};
+
+    // redireciona o pac quando ele atravessa uma das saidas laterais.
+    if(nc.row == 14 && nc.col == 0) nc = {14, 28};
+    if(nc.row == 14 && nc.col == 29) nc = {14, 0};
 
     if(fr.check_valid_coord(nc) && nd != Direction::NONE){
         this->pacman_coord = nc;

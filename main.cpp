@@ -1,5 +1,5 @@
 #include "./includes/__libs__.hpp"
-#include "./engine/frameManager.hpp"
+//#include "./engine/frameManager.hpp"
 #include "./engine/keyboardManager.hpp"
 #include "./engine/position.hpp"
 #include "./engine/spriteManager.hpp"
@@ -13,6 +13,7 @@
 */
 
 void render_frame(Sprite pcs){
+
     system("cls");
     Frame fr;
     fr.draw(pcs);
@@ -55,8 +56,6 @@ void game_loop(){
 }
 
 int main(){
-
     game_loop();
-    
     return 0;
 }
