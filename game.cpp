@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <windows.h>
 #include <tuple>
+#include <iomanip>
 using namespace std;
 
 const unordered_map<uint32_t, size_t> hash_score_coord_and_idx = {
@@ -119,7 +120,8 @@ struct Frame {
         oss << "\n\n\n";
         for(string& line : frame)
             oss << "    " << line << "\n";
-        oss << "\n\n\n";
+        //oss << "\n\n\n";
+        oss << "\n";
         cout << oss.str();
     };
 };
@@ -159,7 +161,6 @@ struct Pacman {
         Coord delt = delta.at(dir);
         int8_t nx = coord.row + delt.row;
         int8_t ny = coord.col + delt.col;
-
         // redireciona o pac quando ele atravessa uma das saidas laterais.
         if(nx == 14){
             if(ny == -1) ny = maze[0].size() - 1;
@@ -202,9 +203,29 @@ int keypress() {
     if((GetAsyncKeyState(VK_DOWN) & KEY_MSB_MASK) != 0) resp = VK_DOWN;
     if((GetAsyncKeyState(VK_LEFT) & KEY_MSB_MASK) != 0) resp = VK_LEFT;
     if((GetAsyncKeyState(VK_RIGHT) & KEY_MSB_MASK) != 0) resp = VK_RIGHT;
+    if((GetAsyncKeyState('W') & KEY_MSB_MASK) != 0) resp = VK_UP;
+    if((GetAsyncKeyState('S') & KEY_MSB_MASK) != 0) resp = VK_DOWN;
+    if((GetAsyncKeyState('A') & KEY_MSB_MASK) != 0) resp = VK_LEFT;
+    if((GetAsyncKeyState('D') & KEY_MSB_MASK) != 0) resp = VK_RIGHT;
     if((GetAsyncKeyState(VK_ESCAPE) & KEY_MSB_MASK) != 0) resp = VK_ESCAPE;
     return resp;
 };
+
+void Create_interface(int capturedScore, int lifes){
+    ostringstream oss;
+    oss << "    " << "SCORE: ";
+    oss << setw(4) << setfill('0') << capturedScore;
+    oss << string(7, ' ');
+
+    string lf = "";
+    if(lifes == 3) lf = "ooo";
+    if(lifes == 2) lf = " oo";
+    if(lifes == 1) lf = "   ";
+    oss << "LIFES: " << lf;
+
+    oss << "\n\n";
+    cout << oss.str();
+}
 
 void logge_frame(Sprite pac){
 
@@ -253,20 +274,23 @@ int catchScore(Sprite pac){
 
     bitmask_score_coord_and_flag[idx] = empacotarCoordEFlag(r, c, !flag);
 
-    return 1;
+    return 5;
 }
 
 void game(){
 
+    int lifes = 3;
     int capturedScore = 0;
     const int TOTAL_SCORE_POINTS=242;
+    const int TOTAL_SCORE = TOTAL_SCORE_POINTS * 5;
 
     Pacman pac;
     logge_frame(pac.get());
+    Create_interface(capturedScore, lifes);
     while(true){
         Sleep(150);
         int key = keypress();
-        if(key == VK_ESCAPE || capturedScore == TOTAL_SCORE_POINTS) break;
+        if(key == VK_ESCAPE || capturedScore == TOTAL_SCORE || lifes == 0) break;
         switch(key){
             case VK_UP:     { pac.changedir(Direction::UP);    break; }
             case VK_DOWN:   { pac.changedir(Direction::DOWN);  break; }
@@ -277,8 +301,10 @@ void game(){
         pac.move();
         capturedScore += catchScore(pac.get());
         logge_frame(pac.get());
+        Create_interface(capturedScore, lifes);
     }
     logge_frame(pac.get());
+    Create_interface(capturedScore, lifes);
 }
 
 int main() {
