@@ -1,13 +1,28 @@
+#include <windows.h>
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
+#include <iomanip>
 #include <vector>
 #include <string>
-#include <unordered_map>
-#include <windows.h>
 #include <tuple>
-#include <iomanip>
+#include <unordered_map>
+#include <algorithm> // usado para encontrar valores em um vetor.
+#include <cmath>
 using namespace std;
+
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |       MACROS:                                                                                 |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
+
+vector<uint32_t> cross = {
+    257, 1537, 3073, 3841, 5377, 6657, 261, 1541, 3077, 3845, 5381, 6661, 264, 1544, 3080, 3848,
+    5384, 6664, 2315, 3083, 3851, 4619, 1550, 2318, 4622, 5390, 2321, 4625, 276, 1556, 2324, 3092,
+    3860, 4628, 5396, 6676, 279, 791, 1559, 2327, 3095, 3863, 4631, 5399, 6167, 6679, 282, 794, 1562,
+    2330, 3098, 3866, 4634, 5402, 6682, 285, 3101, 3869, 6685
+};
 
 const unordered_map<uint32_t, size_t> hash_score_coord_and_idx = {
     {257, 0},    {513, 1},    {769, 2},    {1025, 3},   {1281, 4},   {1537, 5}, 
@@ -96,6 +111,43 @@ const vector<string> maze = {
     "############################",
 };
 
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |       MANIPULAÇÃO DE BITS                                                                     |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
+
+
+uint32_t empacotarCoord(uint8_t x, uint8_t y){
+    uint32_t pacote = (y << 8) | x;
+    return pacote;
+}
+
+tuple<uint8_t, uint8_t> desempacotarCoord(uint32_t pacote){
+    int x = pacote & 0xFF;
+    int y = (pacote >> 8) & 0xFF;
+    return {x, y};
+}
+
+uint32_t empacotarCoordEFlag(uint8_t x, uint8_t y, bool flag){
+    uint32_t pacote = (uint32_t(flag) << 16) | (uint32_t(y) << 8) | uint32_t(x);
+    return pacote;
+}
+
+tuple<uint8_t, uint8_t, bool> desempacotarCoordEFlag(uint32_t pacote){
+    int x = pacote & 0xFF;
+    int y = (pacote >> 8) & 0xFF;
+    bool flag = (pacote >> 16) & 1;
+    return {x, y, flag};
+}
+
+
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |       ESTRUTURAS DE COORDENADA                                                                |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
+
 enum Direction {UP, DOWN, LEFT, RIGHT, NONE};
 
 struct Coord { 
@@ -108,6 +160,13 @@ const unordered_map<Direction, Coord> delta = {
     {Direction::NONE, {0, 0}},
 };
 
+
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |       ESRUTURAS VISUAIS                                                                       |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
+
 struct Sprite { Coord coord; char spr; };
 
 struct Frame {
@@ -118,13 +177,28 @@ struct Frame {
     void Render(){
         ostringstream oss;
         oss << "\n\n\n";
-        for(string& line : frame)
-            oss << "    " << line << "\n";
+        for(string& line : frame){
+            //oss << "    " << line << "\n";
+            oss << "    ";
+            for(char& spr : line){
+                if(spr == '#') 
+                    oss << (char)219;
+                else
+                    oss << spr;
+            }
+            oss << "\n";
+        }
         //oss << "\n\n\n";
         oss << "\n";
         cout << oss.str();
     };
 };
+
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |       ENTIDADES: PACMAN E GHOSTS                                                              |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
 
 struct Pacman {
     const unordered_map<Direction, char> faces = {
@@ -173,28 +247,92 @@ struct Pacman {
     };
 };
 
-uint32_t empacotarCoord(uint8_t x, uint8_t y){
-    uint32_t pacote = (y << 8) | x;
-    return pacote;
-}
+enum GHOSTSTYPE { RED, PINK, BLUE, CLYDE };
 
-tuple<uint8_t, uint8_t> desempacotarCoord(uint32_t pacote){
-    int x = pacote & 0xFF;
-    int y = (pacote >> 8) & 0xFF;
-    return {x, y};
-}
+struct Ghost {
+    Coord ghost_coord;
+    Direction ghost_direction;
+    GHOSTSTYPE ghost_type;
+    Ghost(Coord coord, Direction dir, GHOSTSTYPE type){
+        this->ghost_coord = coord;
+        this->ghost_direction = dir;
+        this->ghost_type = type;
+    };
+    Sprite get(){
+        return {ghost_coord, (char)254}; // 254 é um elemento da tabela ascii
+    };
+    void move(Coord& pacman_coord, Direction& pacman_dir){
+        Coord delt = delta.at(ghost_direction);
+        int8_t nx = ghost_coord.row + delt.row; 
+        int8_t ny = ghost_coord.col + delt.col;
+        if(nx >= 0 && ny < maze.size() && ny >= 0 && ny < maze[0].size()){
+            if(maze[nx][ny] != '#') {
+                ghost_coord = {nx, ny};
+                uint32_t pack = empacotarCoord((uint8_t)nx, (uint8_t)ny);
+                auto it = find(cross.begin(), cross.end(), pack);
+                if(it != cross.end())
+                    calcDistPacman(pacman_coord, pacman_dir);
+            } 
+        }
+    };
+    void calcDistPacman(Coord& pacman_coord, Direction& pacman_dir){
+        Coord target;
+        switch(ghost_type){
+            case GHOSTSTYPE::BLUE: {
+                Coord delt = delta.at(pacman_dir);
+                target = {
+                    (int8_t)(pacman_coord.row + delt.row * 4), 
+                    (int8_t)(pacman_coord.col + delt.col * 4), 
+                };
+                break;
+            }
+            case GHOSTSTYPE::RED: {
+                target = pacman_coord;
+                break;
+            }
+            case GHOSTSTYPE::PINK: {
+                target = pacman_coord;
+                break;
+            }
+            case GHOSTSTYPE::CLYDE: {
+                target = pacman_coord;
+                break;
+            }
+        } 
 
-uint32_t empacotarCoordEFlag(uint8_t x, uint8_t y, bool flag){
-    uint32_t pacote = (uint32_t(flag) << 16) | (uint32_t(y) << 8) | uint32_t(x);
-    return pacote;
-}
+        int minDist = 10000;
+        Direction newDir = ghost_direction;
 
-tuple<uint8_t, uint8_t, bool> desempacotarCoordEFlag(uint32_t pacote){
-    int x = pacote & 0xFF;
-    int y = (pacote >> 8) & 0xFF;
-    bool flag = (pacote >> 16) & 1;
-    return {x, y, flag};
-}
+        for(Direction direction : {UP, DOWN, LEFT, RIGHT}) {
+
+            // O FANTASMA NÃO PODE IR EM UMA DIREÇÃO CONTRARIA A DELE.
+            if(ghost_direction == Direction::UP && direction == Direction::DOWN) continue;
+            if(ghost_direction == Direction::DOWN && direction == Direction::UP) continue;
+            if(ghost_direction == Direction::LEFT && direction == Direction::RIGHT) continue;
+            if(ghost_direction == Direction::RIGHT && direction == Direction::LEFT) continue;
+
+            Coord d = delta.at(direction);
+            int8_t nx = ghost_coord.row + d.row;
+            int8_t ny = ghost_coord.col + d.col;
+            if(nx >= 0 && nx < maze.size() && ny >= 0 && ny < maze[0].size()){
+                if(maze[nx][ny] != '#'){
+                    int dist = abs(nx - target.row) + abs(ny - target.col);
+                    if(dist < minDist){
+                        minDist = dist;
+                        newDir = direction;
+                    }
+                }
+            }
+        } 
+        ghost_direction = newDir;                                                          
+    };
+};
+
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |      CONTROLES                                                                                |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
 
 int keypress() {
     const int KEY_MSB_MASK = 0x8000;
@@ -210,6 +348,13 @@ int keypress() {
     if((GetAsyncKeyState(VK_ESCAPE) & KEY_MSB_MASK) != 0) resp = VK_ESCAPE;
     return resp;
 };
+
+
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |       RENDERIZAÇÃO                                                                            |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
 
 void Create_interface(int capturedScore, int lifes){
     ostringstream oss;
@@ -227,7 +372,7 @@ void Create_interface(int capturedScore, int lifes){
     cout << oss.str();
 }
 
-void logge_frame(Sprite pac){
+void logge_frame(Sprite pac, Sprite red){
 
     system("cls");
     Frame fr;
@@ -246,8 +391,16 @@ void logge_frame(Sprite pac){
         }
     }
     fr.Draw(pac);
+    fr.Draw(red);
     fr.Render();
 }
+
+
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |       FUNÇÕES                                                                                 |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
 
 int catchScore(Sprite pac){
 
@@ -277,6 +430,12 @@ int catchScore(Sprite pac){
     return 5;
 }
 
+// ------------------------------------------------------------------------------------------------
+// |                                                                                               |
+// |       MOTOR DO GAME.                                                                          |
+// |                                                                                               |
+// ------------------------------------------------------------------------------------------------
+
 void game(){
 
     int lifes = 3;
@@ -285,7 +444,8 @@ void game(){
     const int TOTAL_SCORE = TOTAL_SCORE_POINTS * 5;
 
     Pacman pac;
-    logge_frame(pac.get());
+    Ghost red = {{11, 13}, Direction::LEFT, GHOSTSTYPE::CLYDE};
+    logge_frame(pac.get(), red.get());
     Create_interface(capturedScore, lifes);
     while(true){
         Sleep(150);
@@ -299,11 +459,15 @@ void game(){
             default: break;
         }
         pac.move();
+        red.move(pac.coord, pac.dir);
+
+        if(pac.coord.row == red.ghost_coord.row && pac.coord.col == red.ghost_coord.col) break;
+
         capturedScore += catchScore(pac.get());
-        logge_frame(pac.get());
+        logge_frame(pac.get(), red.get());
         Create_interface(capturedScore, lifes);
     }
-    logge_frame(pac.get());
+    logge_frame(pac.get(), red.get());
     Create_interface(capturedScore, lifes);
 }
 
