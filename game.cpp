@@ -1,15 +1,17 @@
-#include <windows.h>
-#include <iostream>
-#include <sstream>
-#include <cstdlib>
-#include <iomanip>
-#include <vector>
+#include <windows.h>    /* Para utilizar  metodo de captura de teclas e codigos de definições de keys. */
+#include <iostream>     /* Para ler e escrever mensagens no cmd. */
+#include <sstream>      /* Buffer de string, facilita criar frames e desenhar no cmd. */
+#include <cstdlib>      /* Para manipular o tamanho das variaveis (qnt de bits). */
+#include <iomanip>      /* Manipulação de entrada e saida.*/
+#include <vector>       /* Estrutura dinamica de armazenamento de dados. */
+#include <algorithm>    /* Usado para encontrar valores em um vetor. */
 #include <string>
 #include <tuple>
 #include <unordered_map>
-#include <algorithm> // usado para encontrar valores em um vetor.
 #include <cmath>
 using namespace std;
+
+
 
 // ------------------------------------------------------------------------------------------------
 // |                                                                                               |
@@ -17,6 +19,9 @@ using namespace std;
 // |                                                                                               |
 // ------------------------------------------------------------------------------------------------
 
+
+/* Estrutura guarda bitmask das coordenadas aonde há encruzilhadas no mapa(labirinto), a ideia é que
+  logica seja aplicada aos inimigos assim que estes chegarem em um encruzilhada. */
 vector<uint32_t> cross = {
     257, 1537, 3073, 3841, 5377, 6657, 261, 1541, 3077, 3845, 5381, 6661, 264, 1544, 3080, 3848,
     5384, 6664, 2315, 3083, 3851, 4619, 1550, 2318, 4622, 5390, 2321, 4625, 276, 1556, 2324, 3092,
@@ -24,6 +29,8 @@ vector<uint32_t> cross = {
     2330, 3098, 3866, 4634, 5402, 6682, 285, 3101, 3869, 6685
 };
 
+/* Estrutura armagena bitmask de coordenadas dos pontos do game como chaves de acesso rápido, cada
+  chave guarda o indice de um coordenada status para cada ponto que o pacman pode capturar. */
 const unordered_map<uint32_t, size_t> hash_score_coord_and_idx = {
     {257, 0},    {513, 1},    {769, 2},    {1025, 3},   {1281, 4},   {1537, 5}, 
     {1793, 6},   {2049, 7},   {2305, 8},   {2561, 9},   {4609, 10},  {4865, 11}, 
@@ -68,6 +75,9 @@ const unordered_map<uint32_t, size_t> hash_score_coord_and_idx = {
     {6429, 240}, {6685, 241}, 
 };
 
+/* Estrutura armagena bitmask estados de cada coordenada que possue um ponto. os valores guardam 
+  em seus bits a coordenada do ponto no labirinto e um bit indicando se o ponto foi capturado ou não.
+  pontos capturados não devem ser desenhados nos frames do game. */
 vector<uint32_t> bitmask_score_coord_and_flag = {
     65793, 66049, 66305, 66561, 66817, 67073, 67329, 67585, 67841, 68097, 70145, 70401, 
     70657, 70913, 71169, 68353, 68609, 69377, 69633, 69889, 71425, 71681, 71937, 72193, 
@@ -92,6 +102,8 @@ vector<uint32_t> bitmask_score_coord_and_flag = {
     71965, 72221 
 };
 
+/* Estrutura modelo do labirinto. apenas com paredes e deve ser desenhada em todos os frames 
+   do game.*/
 const vector<string> maze = {
     "############################", "#            ##            #",
     "# #### ##### ## ##### #### #", "# #  # #   # ## #   # #  # #",
@@ -181,10 +193,8 @@ struct Frame {
             //oss << "    " << line << "\n";
             oss << "    ";
             for(char& spr : line){
-                if(spr == '#') 
-                    oss << (char)219;
-                else
-                    oss << spr;
+                if(spr == '#')  oss << (char)219;
+                else oss << spr;
             }
             oss << "\n";
         }
@@ -261,70 +271,53 @@ struct Ghost {
     Sprite get(){
         return {ghost_coord, (char)254}; // 254 é um elemento da tabela ascii
     };
-    void move(Coord& pacman_coord, Direction& pacman_dir){
+    void move(Coord& pacman_coord){
         Coord delt = delta.at(ghost_direction);
         int8_t nx = ghost_coord.row + delt.row; 
         int8_t ny = ghost_coord.col + delt.col;
-        if(nx >= 0 && ny < maze.size() && ny >= 0 && ny < maze[0].size()){
-            if(maze[nx][ny] != '#') {
+        if(nx >= 0 && nx < maze.size() && ny >= 0 && ny < maze[0].size()){
+            if(maze[nx][ny] != '#' && maze[nx][ny] != '-') {
                 ghost_coord = {nx, ny};
                 uint32_t pack = empacotarCoord((uint8_t)nx, (uint8_t)ny);
                 auto it = find(cross.begin(), cross.end(), pack);
-                if(it != cross.end())
-                    calcDistPacman(pacman_coord, pacman_dir);
+                if(it != cross.end()){
+                    chasePacman(pacman_coord);
+                }    
             } 
         }
     };
-    void calcDistPacman(Coord& pacman_coord, Direction& pacman_dir){
-        Coord target;
-        switch(ghost_type){
-            case GHOSTSTYPE::BLUE: {
-                Coord delt = delta.at(pacman_dir);
-                target = {
-                    (int8_t)(pacman_coord.row + delt.row * 4), 
-                    (int8_t)(pacman_coord.col + delt.col * 4), 
-                };
-                break;
-            }
-            case GHOSTSTYPE::RED: {
-                target = pacman_coord;
-                break;
-            }
-            case GHOSTSTYPE::PINK: {
-                target = pacman_coord;
-                break;
-            }
-            case GHOSTSTYPE::CLYDE: {
-                target = pacman_coord;
-                break;
-            }
-        } 
 
-        int minDist = 10000;
-        Direction newDir = ghost_direction;
+    void chasePacman(Coord& pacman_coord){
+        
+        Direction choose_dir = Direction::NONE;
+        uint32_t min_dist = UINT32_MAX;
 
-        for(Direction direction : {UP, DOWN, LEFT, RIGHT}) {
-
-            // O FANTASMA NÃO PODE IR EM UMA DIREÇÃO CONTRARIA A DELE.
-            if(ghost_direction == Direction::UP && direction == Direction::DOWN) continue;
-            if(ghost_direction == Direction::DOWN && direction == Direction::UP) continue;
-            if(ghost_direction == Direction::LEFT && direction == Direction::RIGHT) continue;
-            if(ghost_direction == Direction::RIGHT && direction == Direction::LEFT) continue;
-
-            Coord d = delta.at(direction);
-            int8_t nx = ghost_coord.row + d.row;
-            int8_t ny = ghost_coord.col + d.col;
-            if(nx >= 0 && nx < maze.size() && ny >= 0 && ny < maze[0].size()){
-                if(maze[nx][ny] != '#'){
-                    int dist = abs(nx - target.row) + abs(ny - target.col);
-                    if(dist < minDist){
-                        minDist = dist;
-                        newDir = direction;
-                    }
-                }
+        for(size_t i = 0; i < 4; i++){
+            
+            Direction dir = static_cast<Direction>(i);
+            Coord d = delta.at(dir);
+            int8_t x = ghost_coord.row;
+            int8_t y = ghost_coord.col;
+            uint32_t point = empacotarCoord((uint8_t)x, (uint8_t)y);
+            auto it = find(cross.begin(), cross.end(), point);
+            while(it == cross.end()){
+                x += d.row;
+                y += d.col;
+                point = empacotarCoord((uint8_t)x, (uint8_t)y);
+                it = find(cross.begin(), cross.end(), point);
             }
-        } 
-        ghost_direction = newDir;                                                          
+            // distancia Euclidiana: sqrt((x2 - x1)**2 + (y2 - y1)**2)
+            uint32_t dist = sqrt(
+                ((x - pacman_coord.row) * (x - pacman_coord.row)) + 
+                ((y - pacman_coord.col) * (y - pacman_coord.col)));
+
+            if(dist < min_dist){
+                min_dist = dist;
+                choose_dir = dir;
+            }
+        }
+
+        ghost_direction = choose_dir;
     };
 };
 
@@ -459,7 +452,7 @@ void game(){
             default: break;
         }
         pac.move();
-        red.move(pac.coord, pac.dir);
+        red.move(pac.coord);
 
         if(pac.coord.row == red.ghost_coord.row && pac.coord.col == red.ghost_coord.col) break;
 
